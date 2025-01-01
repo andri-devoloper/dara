@@ -178,11 +178,11 @@ class PerputakanController extends Controller
                 'durasi' => $duration,
             ]);
 
-            return response()->json(['success' => true]);
+            return response()->json(['success' => true, 'message' => 'Berhasil keluar', 'durasi' => $duration]);
             // 'message' => 'Berhasil keluar', 'durasi' => $duration
         } else {
             // Tidak ada catatan masuk, kemungkinan data tidak ditemukan atau belum melakukan proses masuk
-            return response()->json(['success' => false]);
+            return response()->json(['success' => false, 'message' => 'Tidak ada catatan masuk ditemukan']);
             //, 'message' => 'Tidak ada catatan masuk ditemukan'
         }
     }

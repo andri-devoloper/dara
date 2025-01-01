@@ -8,38 +8,136 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .container {
+            margin-top: 50px;
+        }
+
         #reader {
-            width: 300px;
-            height: 300px;
+            width: 100%;
+            max-width: 500px;
+            height: 340px;
             margin: auto;
-            border: 1px solid #ccc;
+            border-radius: 10px;
+            background-color: #ffffff;
+        }
+
+        .alert-custom {
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+
+        .output-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .countdown {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
         }
     </style>
 </head>
 
 <body>
-    <h1>Barcode Scanner</h1>
-    <div id="reader"></div>
-    <div id="output-container">
-        <p>Hasil: <span id="output"></span></p>
-        <div id="data-container" style="display: none;">
-            <h3>Detail Data:</h3>
-            <ul id="data-list"></ul>
-        </div>
-        <div id="countdown"></div>
+    <div class="container text-center">
+        <div id="reader" class="mb-4"></div>
 
+        <div class="alert alert-info" role="alert">
+            Scan barcode untuk akses masuk dan keluar dari ruang perpustakaan.
+        </div>
+
+        <div id="output-container" class="output-container">
+            <p>Hasil: <span id="output"></span></p>
+            <div id="data-container" style="display: none;">
+                <h3>Detail Data:</h3>
+                <ul id="data-list"></ul>
+            </div>
+            <div id="countdown" class="countdown"></div>
+        </div>
     </div>
+
+    <!-- Modal untuk konfirmasi -->
+    <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmationModalLabel">Konfirmasi</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Apakah ini proses masuk? Klik "Masuk" untuk masuk, atau "Keluar" untuk keluar.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                    <button type="button" class="btn btn-primary" id="confirmEntry">Masuk</button>
+                    <button type="button" class="btn btn-danger" id="confirmExit">Keluar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk pesan -->
+    <div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="messageModalLabel">Pesan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="messageContent">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
 
     <script>
         const html5QrCode = new Html5Qrcode("reader");
+
         const qrCodeSuccessCallback = (decodedText, decodedResult) => {
             const nis = decodedText;
 
             document.getElementById('output').textContent = nis;
-            // Cek apakah pengguna masuk atau keluar
-            const isEntry = confirm("Apakah ini proses masuk? Klik OK untuk masuk, Cancel untuk keluar.");
 
+            // Tampilkan modal konfirmasi
+            const confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+            confirmationModal.show();
+
+            // Setelah pengguna memilih, kirim data
+            document.getElementById('confirmEntry').addEventListener('click', () => {
+                handleEntryExit(true, nis, confirmationModal);
+            });
+
+            document.getElementById('confirmExit').addEventListener('click', () => {
+                handleEntryExit(false, nis, confirmationModal);
+            });
+        };
+
+        const showMessage = (message) => {
+            document.getElementById('messageContent').textContent = message;
+            const messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
+            messageModal.show();
+        };
+
+        const handleEntryExit = (isEntry, nis, modal) => {
             const url = isEntry ? '/handle-entry' : '/handle-exit';
 
             fetch(url, {
@@ -60,45 +158,46 @@
                 })
                 .then(data => {
                     if (data.success) {
-                        if (isEntry) {
-                            alert(data.message);
-                        } else {
-                            alert(`${data.message}. Durasi: ${data.durasi} menit.`);
-                        }
+                        showMessage(isEntry ? data.message : `${data.message}. Durasi: ${data.durasi} menit.`);
                     } else {
                         if (isEntry) {
-                            alert("Data tidak ditemukan. Mengarahkan ke form...");
+                            showMessage("Data tidak ditemukan. Mengarahkan ke form...");
                             setTimeout(() => {
                                 window.location.href = data.redirect;
                             }, 2000);
                         } else {
-                            alert(data.message);
+                            showMessage(data.message);
                         }
                     }
                 })
                 .catch(error => {
                     console.error("Error:", error);
-                    alert("Terjadi kesalahan.");
+                    showMessage("Terjadi kesalahan.");
                 });
 
-            // html5QrCode.stop().then(() => {
-            //    console.log("Scanning stopped.");
-            // }).catch(err => console.error(err));
+            // Tutup modal setelah memilih
+            modal.hide();
         };
-
 
         const config = {
             fps: 10,
-            qrbox: 250,
+            qrbox: 350,
             formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39]
         };
 
-        html5QrCode.start({
-                facingMode: "environment"
-            }, config, qrCodeSuccessCallback)
-            .catch(err => console.error("Start failed", err));
-    </script>
+        const startScanning = () => {
+            html5QrCode.start({
+                    facingMode: "environment"
+                }, config, qrCodeSuccessCallback)
+                .then(() => {
+                    document.getElementById('output-container').style.display = 'block';
+                })
+                .catch(err => console.error("Start failed", err));
+        };
 
+        // Start the QR code scanner automatically when the page loads
+        window.onload = startScanning;
+    </script>
 </body>
 
 </html>
