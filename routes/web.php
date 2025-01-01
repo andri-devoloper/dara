@@ -19,9 +19,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('bar' , function() {
+Route::get('bar', function () {
     return view('bar');
-});
+})->name('bar');
+
 
 Route::get('/barcode', [BarcodeController::class, 'showForm'])->name('show.form');
 Route::post('/barcode', [BarcodeController::class, 'generateBarcode'])->name('generate.barcode');
